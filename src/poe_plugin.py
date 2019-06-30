@@ -7,7 +7,7 @@ from typing import Dict, List, NewType, Optional, Union
 from galaxy.api.consts import Platform
 from galaxy.api.errors import InvalidCredentials
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, NextStep
+from galaxy.api.types import Authentication, Game, LicenseInfo, LicenseType, NextStep
 
 PoeSessionId = NewType("PoeSessionId", str)
 ProfileName = NewType("ProfileName", str)
@@ -85,6 +85,14 @@ class PoePlugin(Plugin):
             return ProfileName(split_uri[1])
 
         return await self._do_auth(get_session_id(), get_profile_name())
+
+    async def get_owned_games(self) -> List[Game]:
+        return [Game(
+            game_id="PathOfExile",
+            game_title="Path of Exile",
+            dlcs=[],  # TODO: parse badges
+            license_info=LicenseInfo(LicenseType.FreeToPlay)
+        )]
 
 
 def main():
