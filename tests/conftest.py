@@ -1,10 +1,11 @@
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
-from poe_plugin import PoePlugin, PoeSessionId, ProfileName
-
+from poe_plugin import PoeHttpClient, PoePlugin
+from poe_types import PoeSessionId, ProfileName
+from tests.utils import AsyncMock
 
 @pytest.fixture()
 def manifest_mock(mocker):
@@ -27,7 +28,22 @@ def stored_credentials(poesessid, profile_name) -> dict:
 
 
 @pytest.fixture()
-async def poe_plugin_mock(manifest_mock):
+def http_client_mock(mocker):
+    return mocker.patch("poe_plugin.PoeHttpClient", return_value=MagicMock(spec=()))
+
+
+@pytest.fixture()
+async def mock_http_client(http_client_mock, poesessid, profile_name) -> PoeHttpClient:
+    http_client = http_client_mock.return_value
+    http_client.shutdown = AsyncMock()
+    yield http_client
+
+    http_client_mock.assert_called_once_with(poesessid, profile_name, ANY)
+    http_client.shutdown.assert_called_once_with()
+
+
+@pytest.fixture()
+def poe_plugin_mock(manifest_mock) -> PoePlugin:
     manifest_mock.return_value = {
         "name": "Galaxy Poe plugin"
         , "platform": "pathofexile"
@@ -39,9 +55,12 @@ async def poe_plugin_mock(manifest_mock):
         , "url": "https://github.com/nyash-qq/galaxy-plugin-poe"
         , "script": "poe_plugin.py"
     }
+    return PoePlugin(MagicMock(), MagicMock(), "handshake_token")
 
-    instance = PoePlugin(MagicMock(), MagicMock(), "handshake_token")
-    yield instance
 
-    instance.shutdown()
+@pytest.fixture()
+async def poe_plugin(poe_plugin_mock) -> PoePlugin:
+    yield poe_plugin_mock
+
+    poe_plugin_mock.shutdown()
     await asyncio.sleep(0)

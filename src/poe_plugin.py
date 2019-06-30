@@ -1,16 +1,17 @@
+import asyncio
 import json
 import os
 import re
 import sys
-from typing import Dict, List, NewType, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from galaxy.api.consts import Platform
 from galaxy.api.errors import InvalidCredentials
 from galaxy.api.plugin import Plugin, create_and_run_plugin
 from galaxy.api.types import Authentication, Game, LicenseInfo, LicenseType, NextStep
 
-PoeSessionId = NewType("PoeSessionId", str)
-ProfileName = NewType("ProfileName", str)
+from poe_http_client import PoeHttpClient
+from poe_types import PoeSessionId, ProfileName
 
 
 class PoePlugin(Plugin):
@@ -24,8 +25,20 @@ class PoePlugin(Plugin):
             return json.load(manifest)
 
     def __init__(self, reader, writer, token):
+        self._http_client: Optional[PoeHttpClient] = None
         self._manifest = self._read_manifest()
         super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)
+
+    def _close_client(self):
+        if not self._http_client:
+            return
+
+        asyncio.create_task(self._http_client.shutdown())
+        self._http_client = None
+
+    def _on_auth_lost(self):
+        self._close_client()
+        self.lost_authentication()
 
     async def _do_auth(
         self, poesessid: PoeSessionId, profile_name: ProfileName, store_poesessid: bool = True
@@ -34,6 +47,8 @@ class PoePlugin(Plugin):
             raise InvalidCredentials(self._AUTH_SESSION_ID)
         if not profile_name:
             raise InvalidCredentials(self._AUTH_PROFILE_NAME)
+
+        self._http_client = PoeHttpClient(poesessid, profile_name, self._on_auth_lost)
 
         if store_poesessid:
             self.store_credentials({self._AUTH_SESSION_ID: poesessid, self._AUTH_PROFILE_NAME: profile_name})
@@ -88,11 +103,14 @@ class PoePlugin(Plugin):
 
     async def get_owned_games(self) -> List[Game]:
         return [Game(
-            game_id="PathOfExile",
-            game_title="Path of Exile",
-            dlcs=[],  # TODO: parse badges
-            license_info=LicenseInfo(LicenseType.FreeToPlay)
+            game_id="PathOfExile"
+            , game_title="Path of Exile"
+            , dlcs=[]
+            , license_info=LicenseInfo(LicenseType.FreeToPlay)
         )]
+
+    def shutdown(self):
+        self._close_client()
 
 
 def main():
