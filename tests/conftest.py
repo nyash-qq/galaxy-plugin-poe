@@ -7,9 +7,15 @@ from poe_plugin import PoeHttpClient, PoePlugin
 from poe_types import PoeSessionId, ProfileName
 from tests.utils import AsyncMock
 
+
 @pytest.fixture()
 def manifest_mock(mocker):
     return mocker.patch("poe_plugin.PoePlugin._read_manifest")
+
+
+@pytest.fixture()
+def game_id():
+    return PoePlugin._GAME_ID
 
 
 @pytest.fixture()
@@ -64,3 +70,9 @@ async def poe_plugin(poe_plugin_mock) -> PoePlugin:
 
     poe_plugin_mock.shutdown()
     await asyncio.sleep(0)
+
+
+@pytest.fixture()
+async def auth_poe_plugin(poe_plugin, stored_credentials) -> PoePlugin:
+    await poe_plugin.authenticate(stored_credentials)
+    yield poe_plugin

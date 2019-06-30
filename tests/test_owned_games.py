@@ -1,12 +1,11 @@
 import pytest
-
 from galaxy.api.types import Game, LicenseInfo, LicenseType
 
 
 @pytest.fixture()
-def poe_game():
+def poe_game(poe_plugin):
     return Game(
-        game_id="PathOfExile"
+        poe_plugin._GAME_ID
         , game_title="Path of Exile"
         , dlcs=[]
         , license_info=LicenseInfo(license_type=LicenseType.FreeToPlay)

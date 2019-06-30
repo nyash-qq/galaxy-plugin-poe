@@ -3,18 +3,23 @@ import json
 import os
 import re
 import sys
+from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 from galaxy.api.consts import Platform
-from galaxy.api.errors import InvalidCredentials
+from galaxy.api.errors import (
+    ApplicationError, AuthenticationRequired, InvalidCredentials, UnknownBackendResponse, UnknownError,
+)
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, Game, LicenseInfo, LicenseType, NextStep
+from galaxy.api.types import Achievement, Authentication, Game, LicenseInfo, LicenseType, NextStep
 
 from poe_http_client import PoeHttpClient
-from poe_types import PoeSessionId, ProfileName
+from poe_types import AchievementName, AchievementTag, PoeSessionId, ProfileName, Timestamp
 
 
 class PoePlugin(Plugin):
+    VERSION = "0.1"
+
     _AUTH_REDIRECT = r"https://localhost/poe?name="
     _AUTH_SESSION_ID = "POESESSID"
     _AUTH_PROFILE_NAME = "PROFILE_NAME"
@@ -24,9 +29,12 @@ class PoePlugin(Plugin):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest.json")) as manifest:
             return json.load(manifest)
 
+    _GAME_ID = "PathOfExile"
+
     def __init__(self, reader, writer, token):
         self._http_client: Optional[PoeHttpClient] = None
         self._manifest = self._read_manifest()
+        self._achievements_cache: Dict[AchievementName, Timestamp] = {}
         super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)
 
     def _close_client(self):
@@ -103,11 +111,50 @@ class PoePlugin(Plugin):
 
     async def get_owned_games(self) -> List[Game]:
         return [Game(
-            game_id="PathOfExile"
+            game_id=self._GAME_ID
             , game_title="Path of Exile"
             , dlcs=[]
             , license_info=LicenseInfo(LicenseType.FreeToPlay)
         )]
+
+    # TODO: remove when galaxy.api's feature detection is fixed
+    async def get_unlocked_achievements(self, game_id: str) -> List[Achievement]:
+        return []
+
+    async def start_achievements_import(self, game_ids: List[str]) -> None:
+        if not self._http_client:
+            raise AuthenticationRequired()
+
+        await super().start_achievements_import(game_ids)
+
+    async def import_games_achievements(self, game_ids: List[str]) -> None:
+        try:
+            def achievement_parser(achievement_tag: Optional[AchievementTag]) -> Achievement:
+                achievement_name = achievement_tag.h2.get_text()
+                if not achievement_name:
+                    raise UnknownBackendResponse("Failed to parse achievement name")
+
+                return Achievement(
+                    unlock_time=self._achievements_cache.setdefault(
+                        achievement_name
+                        , Timestamp(int(datetime.utcnow().timestamp()))
+                    )
+                    , achievement_name=achievement_name
+                )
+
+            self.game_achievements_import_success(
+                self._GAME_ID
+                , [
+                    achievement_parser(achievement_tag)
+                    for achievement_tag in await self._http_client.get_achievements()
+                ]
+            )
+        except ApplicationError as e:
+            self.game_achievements_import_failure(self._GAME_ID, e)
+        except AttributeError as e:
+            self.game_achievements_import_failure(self._GAME_ID, UnknownBackendResponse(str(e)))
+        except Exception as e:
+            self.game_achievements_import_failure(self._GAME_ID, UnknownError(str(e)))
 
     def shutdown(self):
         self._close_client()
