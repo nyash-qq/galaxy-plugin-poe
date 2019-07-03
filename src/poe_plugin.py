@@ -1,20 +1,32 @@
 import asyncio
 import json
 import os
+import platform
 import re
 import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
+import psutil
 from galaxy.api.consts import Platform
 from galaxy.api.errors import (
     ApplicationError, AuthenticationRequired, InvalidCredentials, UnknownBackendResponse, UnknownError,
 )
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Authentication, Game, LicenseInfo, LicenseType, NextStep
+from galaxy.api.types import (
+    Achievement, Authentication, Game, LicenseInfo, LicenseType, LocalGame, LocalGameState, NextStep
+)
 
 from poe_http_client import PoeHttpClient
 from poe_types import AchievementName, AchievementTag, PoeSessionId, ProfileName, Timestamp
+
+
+def is_windows() -> bool:
+    return platform.system() == "Windows"
+
+
+if is_windows():
+    import winreg
 
 
 class PoePlugin(Plugin):
@@ -30,9 +42,13 @@ class PoePlugin(Plugin):
             return json.load(manifest)
 
     _GAME_ID = "PathOfExile"
+    _GAME_BIN = "PathOfExile_x64.exe" if is_windows() else ""
+    _PROC_NAMES = ["pathofexile.exe", "pathofexile_x64.exe"] if is_windows() else []
 
     def __init__(self, reader, writer, token):
         self._http_client: Optional[PoeHttpClient] = None
+        self._install_path: Optional[str] = self._get_install_path()
+        self._game_state: LocalGameState = self._get_game_state()
         self._manifest = self._read_manifest()
         self._achievements_cache: Dict[AchievementName, Timestamp] = {}
         super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)
@@ -155,6 +171,57 @@ class PoePlugin(Plugin):
             self.game_achievements_import_failure(self._GAME_ID, UnknownBackendResponse(str(e)))
         except Exception as e:
             self.game_achievements_import_failure(self._GAME_ID, UnknownError(str(e)))
+
+    if is_windows():
+        def tick(self):
+            if not self._install_path:
+                self._install_path = self._get_install_path()
+
+            current_game_state = self._get_game_state()
+            if self._game_state != current_game_state:
+                self._game_state = current_game_state
+                self.update_local_game_status(LocalGame(self._GAME_ID, self._game_state))
+
+        @staticmethod
+        def _get_install_path() -> Optional[str]:
+            if not is_windows():
+                return None
+
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\GrindingGearGames\Path of Exile") as h_key:
+                    return winreg.QueryValueEx(h_key, "InstallLocation")[0]
+
+            except (WindowsError, ValueError):
+                return None
+
+        def _is_installed(self) -> bool:
+            if not self._install_path:
+                return False
+
+            return (
+                os.path.exists(os.path.join(self._install_path, self._GAME_BIN))
+                and os.path.exists(os.path.join(self._install_path, "Content.ggpk"))
+            )
+
+        def _is_running(self) -> bool:
+            for proc in psutil.process_iter():
+                if proc.name().lower() in self._PROC_NAMES:
+                    return True
+
+            return False
+
+        def _get_game_state(self) -> LocalGameState:
+            if not self._is_installed():
+                return LocalGameState.None_
+
+            if self._is_running():
+                return LocalGameState.Running
+
+            return LocalGameState.Installed
+
+        async def get_local_games(self) -> List[LocalGame]:
+            self._game_state = self._get_game_state()
+            return [LocalGame(self._GAME_ID, self._game_state)]
 
     def shutdown(self):
         self._close_client()
