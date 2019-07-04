@@ -1,3 +1,5 @@
+import json
+import os
 import re
 import sys
 from typing import Dict, List, NewType, Optional, Union
@@ -12,15 +14,18 @@ ProfileName = NewType("ProfileName", str)
 
 
 class PoePlugin(Plugin):
-    VERSION = "0.1"
-
     _AUTH_REDIRECT = r"https://localhost/poe?name="
     _AUTH_SESSION_ID = "POESESSID"
     _AUTH_PROFILE_NAME = "PROFILE_NAME"
 
+    @staticmethod
+    def _read_manifest():
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest.json")) as manifest:
+            return json.load(manifest)
+
     def __init__(self, reader, writer, token):
-        # TODO: replace with Platform.Poe once available
-        super().__init__(Platform.Generic, self.VERSION, reader, writer, token)
+        self._manifest = self._read_manifest()
+        super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)
 
     async def _do_auth(
         self, poesessid: PoeSessionId, profile_name: ProfileName, store_poesessid: bool = True

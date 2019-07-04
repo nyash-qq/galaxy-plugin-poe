@@ -1,0 +1,11 @@
+{
+    "name": "Galaxy Poe plugin",
+    "platform": "pathofexile",
+    "guid": "52d06761-1c23-d725-9720-57ee0b8b14bc",
+    "version": "0.1",
+    "description": "Galaxy Poe plugin",
+    "author": "nyash",
+    "email": "nyash.qq@gmail.com",
+    "url": "https://github.com/nyash-qq/galaxy-plugin-poe",
+    "script": "poe_plugin.py"
+}
