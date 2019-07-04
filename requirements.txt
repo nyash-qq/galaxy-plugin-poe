@@ -1,5 +1,6 @@
-aiohttp==3.5.4
-galaxy.plugin.api==0.40.1
+-r requirements-release.txt
+invoke==1.2.0
+pip-tools==3.8.0
 pytest==4.2.0
 pytest-flakes==4.0.0
 pytest-pythonpath==0.7.3
