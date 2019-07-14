@@ -67,6 +67,7 @@ def build(ctx, output_dir=_OUTPUT_DIR):
 
 @task(build)
 def install(ctx, src_dir=_OUTPUT_DIR):
+    print("Installing into: {}".format(_INSTALL_PATH))
     if os.path.exists(_INSTALL_PATH):
         rmtree(_INSTALL_PATH)
 

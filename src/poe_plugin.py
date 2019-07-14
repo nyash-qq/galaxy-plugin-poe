@@ -3,10 +3,13 @@ import json
 import os
 import platform
 import re
+import subprocess
 import sys
 from datetime import datetime
+import tempfile
 from typing import Dict, List, Optional, Union
 
+import aiofiles
 import psutil
 from galaxy.api.consts import Platform
 from galaxy.api.errors import (
@@ -44,6 +47,8 @@ class PoePlugin(Plugin):
     _GAME_ID = "PathOfExile"
     _GAME_BIN = "PathOfExile_x64.exe" if is_windows() else ""
     _PROC_NAMES = ["pathofexile.exe", "pathofexile_x64.exe"] if is_windows() else []
+
+    _INSTALLER_BIN = "PathOfExileInstaller.exe"
 
     def __init__(self, reader, writer, token):
         self._http_client: Optional[PoeHttpClient] = None
@@ -133,14 +138,16 @@ class PoePlugin(Plugin):
             , license_info=LicenseInfo(LicenseType.FreeToPlay)
         )]
 
+    def requires_authentication(self):
+        if not self._http_client:
+            raise AuthenticationRequired()
+
     # TODO: remove when galaxy.api's feature detection is fixed
     async def get_unlocked_achievements(self, game_id: str) -> List[Achievement]:
         return []
 
     async def start_achievements_import(self, game_ids: List[str]) -> None:
-        if not self._http_client:
-            raise AuthenticationRequired()
-
+        self.requires_authentication()
         await super().start_achievements_import(game_ids)
 
     async def import_games_achievements(self, game_ids: List[str]) -> None:
@@ -184,9 +191,6 @@ class PoePlugin(Plugin):
 
         @staticmethod
         def _get_install_path() -> Optional[str]:
-            if not is_windows():
-                return None
-
             try:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\GrindingGearGames\Path of Exile") as h_key:
                     return winreg.QueryValueEx(h_key, "InstallLocation")[0]
@@ -222,6 +226,61 @@ class PoePlugin(Plugin):
         async def get_local_games(self) -> List[LocalGame]:
             self._game_state = self._get_game_state()
             return [LocalGame(self._GAME_ID, self._game_state)]
+
+        @staticmethod
+        def _exec(command_path: str, *args, arg: List[str] = None, **kwargs):
+            subprocess.Popen(
+                [command_path] + (arg if arg else [])
+                , *args
+                , creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+                , cwd=os.path.dirname(command_path)
+                , **kwargs
+            )
+
+        async def launch_game(self, game_id: str):
+            if self._install_path:
+                self._exec(os.path.join(self._install_path, self._GAME_BIN))
+
+        async def _get_installer(self) -> str:
+            def get_cached() -> Optional[str]:
+                try:
+                    with winreg.OpenKey(
+                        winreg.HKEY_LOCAL_MACHINE,
+                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+                    ) as h_info_root:
+                        for idx in range(winreg.QueryInfoKey(h_info_root)[0]):
+                            try:
+                                with winreg.OpenKeyEx(h_info_root, winreg.EnumKey(h_info_root, idx)) as h_sub_node:
+                                    def get_value(key):
+                                        return winreg.QueryValueEx(h_sub_node, key)[0]
+
+                                    if get_value("DisplayName") == "Path of Exile" and get_value("Installed"):
+                                        installer_path = get_value("BundleCachePath")
+                                        if os.path.exists(str(installer_path)):
+                                            return installer_path
+
+                            except (WindowsError, KeyError, ValueError):
+                                continue
+
+                except (WindowsError, KeyError, ValueError):
+                    return None
+
+            async def download():
+                self.requires_authentication()
+
+                installer_path = os.path.join(tempfile.mkdtemp(), self._INSTALLER_BIN)
+                async with aiofiles.open(installer_path, mode="wb") as installer_bin:
+                    await installer_bin.write(await self._http_client.get_installer())
+
+                return installer_path
+
+            return get_cached() or await download()
+
+        async def install_game(self, game_id: str):
+            self._exec(await self._get_installer())
+
+        async def uninstall_game(self, game_id: str):
+            self._exec(await self._get_installer(), arg=["/uninstall"])
 
     def shutdown(self):
         self._close_client()
