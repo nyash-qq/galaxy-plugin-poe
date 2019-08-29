@@ -5,22 +5,22 @@ import platform
 import re
 import subprocess
 import sys
-from datetime import datetime
 import tempfile
+from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 import aiofiles
 import psutil
 from galaxy.api.consts import Platform
 from galaxy.api.errors import (
-    ApplicationError, AuthenticationRequired, InvalidCredentials, UnknownBackendResponse, UnknownError,
+    AuthenticationRequired, InvalidCredentials, UnknownBackendResponse,
 )
-from galaxy.api.plugin import Plugin, create_and_run_plugin
+from galaxy.api.plugin import create_and_run_plugin, Plugin
 from galaxy.api.types import (
     Achievement, Authentication, Game, LicenseInfo, LicenseType, LocalGame, LocalGameState, NextStep
 )
 
-from poe_http_client import PoeHttpClient
+from poe_http_client import AchievementTagSet, PoeHttpClient
 from poe_types import AchievementName, AchievementTag, PoeSessionId, ProfileName, Timestamp
 
 
@@ -33,7 +33,7 @@ if is_windows():
 
 
 class PoePlugin(Plugin):
-    VERSION = "0.1"
+    VERSION = "0.2"
 
     _AUTH_REDIRECT = r"https://localhost/poe?name="
     _AUTH_SESSION_ID = "POESESSID"
@@ -142,42 +142,33 @@ class PoePlugin(Plugin):
         if not self._http_client:
             raise AuthenticationRequired()
 
-    # TODO: remove when galaxy.api's feature detection is fixed
-    async def get_unlocked_achievements(self, game_id: str) -> List[Achievement]:
-        return []
-
-    async def start_achievements_import(self, game_ids: List[str]) -> None:
+    async def prepare_achievements_context(self, game_ids: List[str]) -> AchievementTagSet:
         self.requires_authentication()
-        await super().start_achievements_import(game_ids)
 
-    async def import_games_achievements(self, game_ids: List[str]) -> None:
-        try:
-            def achievement_parser(achievement_tag: Optional[AchievementTag]) -> Achievement:
-                achievement_name = achievement_tag.h2.get_text()
-                if not achievement_name:
-                    raise UnknownBackendResponse("Failed to parse achievement name")
+        return await self._http_client.get_achievements()
 
-                return Achievement(
-                    unlock_time=self._achievements_cache.setdefault(
-                        achievement_name
-                        , Timestamp(int(datetime.utcnow().timestamp()))
-                    )
-                    , achievement_name=achievement_name
+    async def get_unlocked_achievements(self, game_id: str, achievement_tags: AchievementTagSet) -> List[Achievement]:
+        def achievement_parser(achievement_tag: Optional[AchievementTag]) -> Achievement:
+            name_tag = achievement_tag.h2
+            if not name_tag:
+                raise UnknownBackendResponse("Cannot find achievement name tag")
+
+            achievement_name = achievement_tag.h2.get_text()
+            if not achievement_name:
+                raise UnknownBackendResponse("Failed to parse achievement name")
+
+            return Achievement(
+                unlock_time=self._achievements_cache.setdefault(
+                    achievement_name
+                    , Timestamp(int(datetime.utcnow().timestamp()))
                 )
-
-            self.game_achievements_import_success(
-                self._GAME_ID
-                , [
-                    achievement_parser(achievement_tag)
-                    for achievement_tag in await self._http_client.get_achievements()
-                ]
+                , achievement_name=achievement_name
             )
-        except ApplicationError as e:
-            self.game_achievements_import_failure(self._GAME_ID, e)
-        except AttributeError as e:
-            self.game_achievements_import_failure(self._GAME_ID, UnknownBackendResponse(str(e)))
-        except Exception as e:
-            self.game_achievements_import_failure(self._GAME_ID, UnknownError(str(e)))
+
+        return [
+            achievement_parser(achievement_tag)
+            for achievement_tag in achievement_tags
+        ]
 
     if is_windows():
         def tick(self):
