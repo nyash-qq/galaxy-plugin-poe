@@ -5,7 +5,6 @@ import platform
 import tempfile
 from shutil import copy, copytree, rmtree
 
-from galaxy.tools import zip_folder_to_file
 from invoke import task
 
 with open(os.path.join("src", "manifest.json"), "r") as manifest:
@@ -34,6 +33,7 @@ _VERSION = _MANIFEST["version"]
 
 @task(aliases=["r", "req"])
 def requirements(ctx):
+    ctx.run('python -m pip install "pip<19.2"')
     ctx.run("pip install -r {}".format(_REQ_DEV))
 
 
@@ -74,8 +74,10 @@ def install(ctx, src_dir=_OUTPUT_DIR):
     copytree(src_dir, _INSTALL_PATH)
 
 
-@task(aliases=["p"])
+@task(requirements, aliases=["p"])
 def pack(ctx, output_dir=_OUTPUT_DIR):
+    from galaxy.tools import zip_folder_to_file
+
     build(ctx, output_dir=output_dir)
     zip_folder_to_file(
         output_dir
