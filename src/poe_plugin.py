@@ -33,8 +33,6 @@ if is_windows():
 
 
 class PoePlugin(Plugin):
-    VERSION = "0.2"
-
     _AUTH_REDIRECT = r"https://localhost/poe?name="
     _AUTH_SESSION_ID = "POESESSID"
     _AUTH_PROFILE_NAME = "PROFILE_NAME"
