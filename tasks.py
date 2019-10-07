@@ -2,13 +2,13 @@ import glob
 import json
 import os
 import platform
-import tempfile
+from collections import namedtuple
 from shutil import copy, copytree, rmtree
 
 from invoke import task
 
 with open(os.path.join("src", "manifest.json"), "r") as manifest:
-    _MANIFEST = json.load(manifest)
+    _MANIFEST = json.load(manifest, object_hook=lambda d: namedtuple("MANIFEST", d.keys())(*d.values()))
 
 _LOCAL_APPDATA = {
     "Windows": os.path.expandvars("%LOCALAPPDATA%")
@@ -17,7 +17,7 @@ _LOCAL_APPDATA = {
 
 _INSTALL_PATH = os.path.join(
     _LOCAL_APPDATA, "GOG.com", "Galaxy", "plugins", "installed", "{platform}_{plugin_id}".format(
-        platform=_MANIFEST["platform"], plugin_id=_MANIFEST["guid"]
+        platform=_MANIFEST.platform, plugin_id=_MANIFEST.guid
     )
 )
 
@@ -28,7 +28,7 @@ _PLATFORM = {
 }[platform.system()]
 _REQ_DEV = "requirements.txt"
 _REQ_RELEASE = "requirements-release.txt"
-_VERSION = _MANIFEST["version"]
+_VERSION = _MANIFEST.version
 
 
 @task(aliases=["r", "req"])
@@ -78,9 +78,9 @@ def pack(ctx, output_dir=_OUTPUT_DIR):
     zip_folder_to_file(
         output_dir
         , "{plugin_platform}_{plugin_id}_v{version}_{os}.zip".format(
-            plugin_platform=_MANIFEST["platform"]
-            , plugin_id=_MANIFEST["guid"]
-            , version=_MANIFEST["version"]
+            plugin_platform=_MANIFEST.platform
+            , plugin_id=_MANIFEST.guid
+            , version=_MANIFEST.version
             , os=_PLATFORM
         )
     )
