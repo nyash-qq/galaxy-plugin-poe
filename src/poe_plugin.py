@@ -12,9 +12,7 @@ from typing import Dict, List, Optional, Union
 import aiofiles
 import psutil
 from galaxy.api.consts import Platform
-from galaxy.api.errors import (
-    AuthenticationRequired, InvalidCredentials, UnknownBackendResponse,
-)
+from galaxy.api.errors import AuthenticationRequired, InvalidCredentials, UnknownBackendResponse
 from galaxy.api.plugin import create_and_run_plugin, Plugin
 from galaxy.api.types import (
     Achievement, Authentication, Game, LicenseInfo, LicenseType, LocalGame, LocalGameState, NextStep
@@ -234,8 +232,8 @@ class PoePlugin(Plugin):
             def get_cached() -> Optional[str]:
                 try:
                     with winreg.OpenKey(
-                        winreg.HKEY_LOCAL_MACHINE,
-                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+                        winreg.HKEY_LOCAL_MACHINE
+                        , r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
                     ) as h_info_root:
                         for idx in range(winreg.QueryInfoKey(h_info_root)[0]):
                             try:

@@ -16,9 +16,7 @@ _LOCAL_APPDATA = {
 }[platform.system()]
 
 _INSTALL_PATH = os.path.join(
-    _LOCAL_APPDATA, "GOG.com", "Galaxy", "plugins", "installed", "{platform}_{plugin_id}".format(
-        platform=_MANIFEST.platform, plugin_id=_MANIFEST.guid
-    )
+    _LOCAL_APPDATA, "GOG.com", "Galaxy", "plugins", "installed", f"{_MANIFEST.platform}_{_MANIFEST.guid}"
 )
 
 _OUTPUT_DIR = "output"
@@ -33,7 +31,7 @@ _VERSION = _MANIFEST.version
 
 @task(aliases=["r", "req"])
 def requirements(ctx):
-    ctx.run("pip install -r {}".format(_REQ_DEV))
+    ctx.run(f"pip install -r {_REQ_DEV}")
 
 
 @task(requirements, aliases=["t"])
@@ -48,22 +46,22 @@ def build(ctx, output_dir=_OUTPUT_DIR):
 
     ctx.run(
         "pip install"
-        " -r {req}"
-        " --platform {platform}"
-        " --target {output_dir}"
+        f" -r {_REQ_RELEASE}"
+        f" --platform {_PLATFORM}"
+        f" --target {output_dir}"
         " --python-version 37"
-        " --only-binary=:all:".format(req=_REQ_RELEASE, platform=_PLATFORM, output_dir=output_dir)
+        " --only-binary=:all:"
         , echo=True
     )
 
     [copy(src, output_dir) for src in glob.glob("src/*.*")]
 
-    [rmtree(dir_) for dir_ in glob.glob("{}/*.dist-info".format(output_dir))]
+    [rmtree(dir_) for dir_ in glob.glob(f"{output_dir}/*.dist-info")]
 
 
 @task(build)
 def install(ctx, src_dir=_OUTPUT_DIR):
-    print("Installing into: {}".format(_INSTALL_PATH))
+    print(f"Installing into: {_INSTALL_PATH}")
     if os.path.exists(_INSTALL_PATH):
         rmtree(_INSTALL_PATH)
 
@@ -77,10 +75,5 @@ def pack(ctx, output_dir=_OUTPUT_DIR):
     build(ctx, output_dir=output_dir)
     zip_folder_to_file(
         output_dir
-        , "{plugin_platform}_{plugin_id}_v{version}_{os}.zip".format(
-            plugin_platform=_MANIFEST.platform
-            , plugin_id=_MANIFEST.guid
-            , version=_MANIFEST.version
-            , os=_PLATFORM
-        )
+        , f"{_MANIFEST.platform}_{_MANIFEST.guid}_v{_MANIFEST.version}_{_PLATFORM}.zip"
     )

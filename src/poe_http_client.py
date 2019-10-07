@@ -13,13 +13,12 @@ from poe_types import AchievementTagSet, HtmlPage, PoeSessionId, ProfileName
 
 class PoeHttpClient(HttpClient):
     _INSTALL_BIN_URL = "https://www.pathofexile.com/downloads/PathOfExileInstaller.exe"
-    _URL_ACHIEVEMENTS = "https://www.pathofexile.com/account/view-profile/{profile}/achievements"
 
     def __init__(self, poesessid: PoeSessionId, profile_name: ProfileName, auth_lost_callback: Callable):
         self._profile_name = profile_name
         self._auth_lost_callback = auth_lost_callback
         cookies = aiohttp.CookieJar()
-        cookies.update_cookies(SimpleCookie("POESESSID={}; Domain=pathofexile.com;".format(poesessid)))
+        cookies.update_cookies(SimpleCookie(f"POESESSID={poesessid}; Domain=pathofexile.com;"))
         super().__init__(limit=30, timeout=aiohttp.ClientTimeout(total=30), cookie_jar=cookies)
 
     async def _authenticated_request(self, method, *args, **kwargs) -> ClientResponse:
@@ -41,7 +40,10 @@ class PoeHttpClient(HttpClient):
         ).read()
 
     async def get_achievements(self, *args, **kwargs) -> AchievementTagSet:
-        response = await self._get_page(*args, url=self._URL_ACHIEVEMENTS.format(profile=self._profile_name), **kwargs)
+        response = await self._get_page(
+            *args
+            , url=f"https://www.pathofexile.com/account/view-profile/{self._profile_name}/achievements"
+            , **kwargs)
 
         try:
             return BeautifulSoup(response, "lxml").select("div.achievement:not(.incomplete)")
