@@ -33,7 +33,6 @@ _VERSION = _MANIFEST["version"]
 
 @task(aliases=["r", "req"])
 def requirements(ctx):
-    ctx.run('python -m pip install "pip<19.2"')
     ctx.run("pip install -r {}".format(_REQ_DEV))
 
 
@@ -47,18 +46,15 @@ def build(ctx, output_dir=_OUTPUT_DIR):
     if os.path.exists(output_dir):
         rmtree(output_dir)
 
-    with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
-        ctx.run("pip-compile {req} --dry-run".format(req=_REQ_RELEASE), out_stream=tmp)
-        ctx.run(
-            "pip install"
-            " -r {req}"
-            " --platform {platform}"
-            " --target {output_dir}"
-            " --python-version 37"
-            " --no-compile"
-            " --no-deps".format(req=tmp.name, platform=_PLATFORM, output_dir=output_dir)
-            , echo=True
-        )
+    ctx.run(
+        "pip install"
+        " -r {req}"
+        " --platform {platform}"
+        " --target {output_dir}"
+        " --python-version 37"
+        " --only-binary=:all:".format(req=_REQ_RELEASE, platform=_PLATFORM, output_dir=output_dir)
+        , echo=True
+    )
 
     [copy(src, output_dir) for src in glob.glob("src/*.*")]
 
