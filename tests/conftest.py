@@ -76,7 +76,7 @@ def poe_plugin_mock(manifest_mock, reg_query_value_mock, mocker) -> PoePlugin:
 async def poe_plugin(poe_plugin_mock) -> PoePlugin:
     yield poe_plugin_mock
 
-    poe_plugin_mock.shutdown()
+    await poe_plugin_mock.shutdown()
     await asyncio.sleep(0)
 
 

@@ -56,15 +56,15 @@ class PoePlugin(Plugin):
         self._achievements_cache: Dict[AchievementName, Timestamp] = {}
         super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)
 
-    def _close_client(self):
+    async def _close_client(self):
         if not self._http_client:
             return
 
-        asyncio.create_task(self._http_client.shutdown())
+        await self._http_client.shutdown()
         self._http_client = None
 
     def _on_auth_lost(self):
-        self._close_client()
+        asyncio.create_task(self._close_client())
         self.lost_authentication()
 
     async def _do_auth(
@@ -271,8 +271,8 @@ class PoePlugin(Plugin):
         async def uninstall_game(self, game_id: str):
             self._exec(await self._get_installer(), arg=["/uninstall"])
 
-    def shutdown(self):
-        self._close_client()
+    async def shutdown(self):
+        await self._close_client()
 
 
 def main():
