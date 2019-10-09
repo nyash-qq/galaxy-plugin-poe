@@ -14,13 +14,18 @@ if platform.system() == "Windows":
 
     def proc_mock(name):
         proc = MagicMock(spec=())
-        proc.name = MagicMock(return_value=name)
+        proc.binary_path = name
         return proc
 
 
-    _PROCESS_LIST_NOT_RUNNING = [proc_mock(name) for name in
-        ("opera.exe", "GalaxyClient.exe", "PathOfExile not game.exe")]
-    _PROCESS_LIST_RUNNING = [proc_mock(name) for name in ("opera.exe", "GalaxyClient.exe", "PathOfExile_x64.exe")]
+    _PROCESS_LIST_NOT_RUNNING = [
+        proc_mock(name)
+        for name in ("c:\\opera.exe", "d:\\GalaxyClient.exe", "d:\\PathOfExile not game.exe", "e:\\not PathOfExile.exe")
+    ]
+    _PROCESS_LIST_RUNNING = [
+        proc_mock(name)
+        for name in ("c:\\opera.exe", "d:\\GalaxyClient.exe", "d:\\PathOfExile_x64.exe")
+    ]
 
     _GAME_BIN = PoePlugin._GAME_BIN
     _GAME_ID = PoePlugin._GAME_ID
@@ -36,7 +41,7 @@ if platform.system() == "Windows":
 
     @pytest.fixture()
     def process_iter_mock(mocker):
-        return mocker.patch("poe_plugin.psutil.process_iter")
+        return mocker.patch("poe_plugin.process_iter")
 
 
     @pytest.fixture()

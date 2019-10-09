@@ -10,14 +10,13 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 import aiofiles
-import psutil
 from galaxy.api.consts import Platform
 from galaxy.api.errors import AuthenticationRequired, InvalidCredentials, UnknownBackendResponse
 from galaxy.api.plugin import create_and_run_plugin, Plugin
 from galaxy.api.types import (
     Achievement, Authentication, Game, LicenseInfo, LicenseType, LocalGame, LocalGameState, NextStep
 )
-
+from galaxy.proc_tools import process_iter
 from poe_http_client import AchievementTagSet, PoeHttpClient
 from poe_types import AchievementName, AchievementTag, PoeSessionId, ProfileName, Timestamp
 
@@ -195,9 +194,13 @@ class PoePlugin(Plugin):
             )
 
         def _is_running(self) -> bool:
-            for proc in psutil.process_iter():
-                if proc.name().lower() in self._PROC_NAMES:
-                    return True
+            for proc in process_iter():
+                if proc.binary_path is None:
+                    continue
+
+                for proc_name in self._PROC_NAMES:
+                    if proc.binary_path.lower().endswith(os.path.join(os.path.sep, proc_name)):
+                        return True
 
             return False
 
