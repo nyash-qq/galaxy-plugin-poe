@@ -24,8 +24,8 @@ _PLATFORM = {
     "Windows": "win32"
     , "Darwin": "macosx_10_12_x86_64"
 }[platform.system()]
-_REQ_DEV = "requirements/dev.txt"
-_REQ_RELEASE = "requirements/app.txt"
+_REQ_DEV = "requirements-dev.txt"
+_REQ_RELEASE = "requirements.txt"
 _VERSION = _MANIFEST.version
 
 
