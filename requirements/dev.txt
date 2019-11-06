@@ -1,4 +1,4 @@
--r requirements-release.txt
+-r app.txt
 pytest==5.2.1
 pytest-flakes==4.0.0
 pytest-pythonpath==0.7.3
