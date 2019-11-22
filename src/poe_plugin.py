@@ -9,7 +9,6 @@ import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-import aiofiles
 from galaxy.api.consts import Platform
 from galaxy.api.errors import AuthenticationRequired, InvalidCredentials, UnknownBackendResponse
 from galaxy.api.plugin import create_and_run_plugin, Plugin
@@ -26,6 +25,7 @@ def is_windows() -> bool:
 
 
 if is_windows():
+    import aiofiles
     import winreg
 
 
@@ -47,8 +47,8 @@ class PoePlugin(Plugin):
 
     def __init__(self, reader, writer, token):
         self._http_client: Optional[PoeHttpClient] = None
-        self._install_path: Optional[str] = self._get_install_path()
-        self._game_state: LocalGameState = self._get_game_state()
+        self._install_path: Optional[str] = self._get_install_path() if is_windows() else None
+        self._game_state: LocalGameState = self._get_game_state() if is_windows() else None
         self._manifest = self._read_manifest()
         self._achievements_cache: Dict[AchievementName, Timestamp] = {}
         super().__init__(Platform(self._manifest["platform"]), self._manifest["version"], reader, writer, token)

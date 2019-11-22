@@ -1,8 +1,8 @@
 import platform
-import subprocess
 
 if platform.system() == "Windows":
     import os
+    import subprocess
     import winreg
     from unittest.mock import MagicMock, call
 

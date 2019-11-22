@@ -47,10 +47,8 @@ def build(ctx, output_dir=_OUTPUT_DIR):
     ctx.run(
         "pip install"
         f" -r {_REQ_RELEASE}"
-        f" --platform {_PLATFORM}"
         f" --target {output_dir}"
-        " --python-version 37"
-        " --only-binary=:all:"
+        " --prefer-binary"
         , echo=True
     )
 

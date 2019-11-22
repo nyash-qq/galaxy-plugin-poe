@@ -3,4 +3,3 @@ aiohttp==3.5.4
 beautifulsoup4==4.8.1
 galaxy.plugin.api==0.52
 lxml==4.4.1
-psutil==5.6.3

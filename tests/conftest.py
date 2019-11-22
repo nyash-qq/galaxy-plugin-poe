@@ -1,5 +1,5 @@
 import asyncio
-import winreg
+import platform
 from unittest.mock import ANY, MagicMock
 
 import pytest
@@ -7,6 +7,14 @@ import pytest
 from poe_plugin import PoeHttpClient, PoePlugin
 from poe_types import PoeSessionId, ProfileName
 from tests.utils import AsyncMock
+
+
+def is_windows() -> bool:
+    return platform.system() == "Windows"
+
+
+if is_windows():
+    import winreg
 
 
 @pytest.fixture()
@@ -51,13 +59,17 @@ async def mock_http_client(http_client_mock, poesessid, profile_name) -> PoeHttp
 
 @pytest.fixture()
 def reg_query_value_mock(mocker):
-    return mocker.patch("poe_plugin.winreg.QueryValueEx")
+    if not is_windows():
+        return None
 
+    return mocker.patch("poe_plugin.winreg.QueryValueEx")
 
 @pytest.fixture()
 def poe_plugin_mock(manifest_mock, reg_query_value_mock, mocker) -> PoePlugin:
-    mocker.patch("poe_plugin.winreg.OpenKey")
-    reg_query_value_mock.return_value = (None, winreg.REG_SZ)
+    if is_windows():
+        mocker.patch("poe_plugin.winreg.OpenKey")
+        reg_query_value_mock.return_value = (None, winreg.REG_SZ)
+
     manifest_mock.return_value = {
         "name": "Galaxy Poe plugin"
         , "platform": "pathofexile"
