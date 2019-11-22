@@ -4,7 +4,7 @@ if platform.system() == "Windows":
     import os
     import subprocess
     import winreg
-    from unittest.mock import MagicMock, call
+    from unittest.mock import MagicMock
 
     import pytest
     from galaxy.api.types import LocalGame, LocalGameState
@@ -74,10 +74,8 @@ if platform.system() == "Windows":
         if is_installed:
             process_iter_mock.assert_called_once_with()
         if install_path and is_installed:
-            path_exists_mock.assert_has_calls(
-                [call(os.path.join(install_path, _GAME_BIN))
-                    , call(os.path.join(install_path, "Content.ggpk"))]
-                , any_order=True
+            path_exists_mock.assert_called_once_with(
+                os.path.join(install_path, _GAME_BIN)
             )
 
 
@@ -117,10 +115,8 @@ if platform.system() == "Windows":
 
         if install_path:
             if is_installed:
-                path_exists_mock.assert_has_calls(
-                    [call(os.path.join(install_path, _GAME_BIN))
-                        , call(os.path.join(install_path, "Content.ggpk"))]
-                    , any_order=True
+                path_exists_mock.assert_called_once_with(
+                    os.path.join(install_path, _GAME_BIN)
                 )
 
 

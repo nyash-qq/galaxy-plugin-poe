@@ -188,10 +188,7 @@ class PoePlugin(Plugin):
             if not self._install_path:
                 return False
 
-            return (
-                os.path.exists(os.path.join(self._install_path, self._GAME_BIN))
-                and os.path.exists(os.path.join(self._install_path, "Content.ggpk"))
-            )
+            return os.path.exists(os.path.join(self._install_path, self._GAME_BIN))
 
         def _is_running(self) -> bool:
             for proc in process_iter():
