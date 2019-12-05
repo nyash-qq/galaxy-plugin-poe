@@ -2,4 +2,5 @@ aiofiles==0.4.0; sys_platform == "win32"
 aiohttp==3.5.4
 beautifulsoup4==4.8.1
 galaxy.plugin.api==0.52
+psutil==5.6.3; sys_platform == "darwin"
 lxml==4.4.1
