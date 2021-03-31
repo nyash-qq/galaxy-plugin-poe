@@ -3,4 +3,4 @@ aiohttp==3.5.4
 beautifulsoup4==4.8.1
 galaxy.plugin.api==0.61
 psutil==5.6.3; sys_platform == "darwin"
-lxml==4.4.1
+lxml==4.6.3
